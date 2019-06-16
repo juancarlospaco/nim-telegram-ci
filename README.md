@@ -1,2 +1,3 @@
-# nim-telegram-ci
-Telegram CI Continuous Build
+# Telegram-CI
+
+- Telegram CI Continuous Build Service.

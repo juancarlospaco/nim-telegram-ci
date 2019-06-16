@@ -12,3 +12,6 @@ bin           = @["nim_telegram_ci"]
 # Dependencies
 
 requires "nim >= 0.20.0"
+requires telebot
+requires zip
+requires webp

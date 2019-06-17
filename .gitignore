@@ -4,3 +4,4 @@
 *.o
 *.log
 src/telegram_ci
+src/*.txt

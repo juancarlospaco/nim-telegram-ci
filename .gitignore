@@ -2,3 +2,5 @@
 *.c
 *.h
 *.o
+*.log
+src/telegram_ci

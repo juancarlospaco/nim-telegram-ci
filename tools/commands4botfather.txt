@@ -1,0 +1,17 @@
+about - About this Bot
+help - Help
+ayuda - Ayuda
+donate - Donate to improve the Hardware of the Bot
+donar - Donar para mejorar el Hardware del Bot
+lshw - Linux lshw
+df - Linux df
+free - Linux free
+cpu - CPU usage total
+dollar - Dollar prices (USD)
+dolar - Precio del Dolar (USD)
+clima - Estado del Clima (Argentina)
+weather - Weather conditions (Argentina)
+nimblerefresh - nimble refresh
+choosenimupdate - choosenim update
+pipupdate - pip update
+rmtmp - Clean out temporary folders

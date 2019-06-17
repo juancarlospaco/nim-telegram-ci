@@ -5,6 +5,7 @@
 
 # Features
 
+- Async.
 - Single file.
 - 0 Dependency.
 - No YAML files.

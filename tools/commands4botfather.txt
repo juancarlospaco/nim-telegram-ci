@@ -15,3 +15,4 @@ nimblerefresh - nimble refresh
 choosenimupdate - choosenim update
 pipupdate - pip update
 rmtmp - Clean out temporary folders
+echo - Echo back data (Nick, UserID, etc)

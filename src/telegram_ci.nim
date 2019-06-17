@@ -1,6 +1,7 @@
 import
   asyncdispatch, httpclient, logging, json, options, osproc, parsecfg,
-  strformat, strutils, terminal, times, random, posix, os, posix_utils
+  strformat, strutils, terminal, times, random, posix, os, posix_utils,
+  marshal
 
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 
@@ -13,6 +14,7 @@ const
   apiKey = staticRead("telegramkey.txt").strip
   oerApiKey = staticRead("openexchangerateskey.txt").strip
   owmApiKey = staticRead("openweathermapkey.txt").strip
+  channelUser = staticRead("telegramchannel.txt").strip
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
   pollingInterval = 1_000 * 1_000
   tempFolder = getTempDir() ## Temporary folder used for temporary files at runtime, etc.
@@ -72,6 +74,7 @@ template handlerizer(body: untyped): untyped =
   #inc counter
   body
   var msg = newMessage(update.message.chat.id, $message.strip())
+  # var msg = newMessage(channelUser, $message.strip())
   msg.disableNotification = true
   msg.parseMode = "markdown"
   discard bot.send(msg)
@@ -233,6 +236,20 @@ proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
     let message = msg
 
+proc echoHandler(bot: Telebot, update: Command) {.async.} =
+  var msg = fmt"""*Echo*
+  *Your Username* `{ update.message.chat.username }`
+  *Your First Name* `{ update.message.chat.first_name }`
+  *Your Last Name* `{ update.message.chat.last_name }`
+  *Your User ID* `{ update.message.chat.id }`
+  *Your Chat Date* `{ update.message.date }`
+  *Message ID* `{ update.message.messageId }`
+  *Message Text* `{ update.message.text }`
+  _This is all information about you that a Bot can see._"""
+  handlerizer():
+    let message = msg
+
+
 proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
@@ -254,6 +271,7 @@ proc main() {.async.} =
   bot.onCommand("choosenimupdate", choosenimHandler)
   bot.onCommand("pipupdate", pipUpdateHandler)
   bot.onCommand("rmtmp", rmTmpHandler)
+  bot.onCommand("echo", echoHandler)
   #bot.onUpdate(handleUpdate)
   discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)

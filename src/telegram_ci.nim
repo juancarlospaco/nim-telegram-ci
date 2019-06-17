@@ -213,9 +213,10 @@ proc weatherHandler(bot: Telebot, update: Command) {.async.} =
 
 proc main() {.async.} =
   ## Main loop of the bot. It instances, init, config, run loop of the Bot.
-  addHandler(newConsoleLogger(fmtStr="$time $levelname "))
+  addHandler(newConsoleLogger(fmtStr=verboseFmtStr))
+  addHandler(newRollingFileLogger())
   let bot = newTeleBot(apiKey)
-  bot.onUpdate(handleUpdate)
+  #bot.onUpdate(handleUpdate)
   bot.onCommand("about", aboutHandler)
   bot.onCommand("help", aboutHandler)
   bot.onCommand("ayuda", aboutHandler)

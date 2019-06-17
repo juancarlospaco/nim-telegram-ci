@@ -7,9 +7,10 @@ import zip/zipfiles       # nimble install zip
 import openexchangerates
 import openweathermap
 
+
 const
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
-  pollingInterval = 100 * 1_000
+  pollingInterval = 1_000 * 1_000
   tempFolder = getTempDir()  ## Temporary folder used for temporary files at runtime, etc.
   stripCmd = "strip --strip-all --remove-section=.comment"        ## Linux Bash command to strip the compiled binary executables.
   upxCmd    = "upx --ultra-brute" ## Linux Bash command to compress the compiled binary executables.
@@ -19,6 +20,11 @@ const
   # cutycaptCmd = "xvfb-run --server-args='-screen 0, 1280x1024x24' CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 "  ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net and XVFB for HeadLess Servers without X.
   ramSize = staticExec("free --human --total --giga | awk '/^Mem:/{print $2}'").strip
   ssdSize = staticExec("""df --human-readable --local --total --print-type | awk '$1=="total"{print $3}'""").strip
+  ssdFree = """df --human-readable --local --total --print-type | awk '$1=="total"{print $5}'"""
+  cpuFreeCmd = "mpstat -o JSON"
+  nimbleRefreshCmd = "nimble refresh --accept --noColor"
+  pipUpdateCmd = "pip install --quiet --exists-action w --upgrade --disable-pip-version-check pip virtualenv setuptools wheel pre-commit pre-commit-hooks prospector isort fades tox black pytest"
+  choosenimUpdateCmd = "choosenim update self --yes --noColor ; choosenim update stable --yes --noColor"
   pythonVersion = staticExec("python3 --version").replace("Python", "").strip
   gpuInfo = staticExec("head -n 1 /proc/driver/nvidia/gpus/0000:01:00.0/information").replace("Model:", "").strip
   apiUrl = "https://api.telegram.org/file/bot$1/".format(apiKey)
@@ -115,7 +121,6 @@ proc staticHandler(static_file: string): CommandCallback =
         document_caption   = static_file
   return cb
 
-
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
   handlerizer():
@@ -124,11 +129,11 @@ proc lshwHandler(bot: Telebot, update: Command) {.async.} =
 proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
   handlerizer():
-    let message = fmt"""`{execCmdEx("nimble refresh --accept --noColor")[0]}`"""
+    let message = fmt"""`{execCmdEx(nimbleRefreshCmd)[0]}`"""
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
-  var msg = newMessage(update.message.chat.id, fmt"""`{execCmdEx("choosenim update self --yes --noColor; choosenim update stable --yes --noColor")[0]}`""")
+  var msg = newMessage(update.message.chat.id, fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`""")
   msg.disableNotification = true
   msg.parseMode = "markdown"
   discard bot.send(msg)
@@ -136,9 +141,34 @@ proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
   #   let message = fmt"""`{execCmdEx("choosenim update devel --yes --noColor; choosenim stable")[0]}`"""
 
 proc pipUpdateHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
   handlerizer():
-    let message = fmt"""`{execCmdEx("pip install --quiet --exists-action w --upgrade --disable-pip-version-check pip virtualenv setuptools wheel pre-commit pre-commit-hooks prospector isort")[0]}`"""
+    let message = fmt"""`{execCmdEx(pipUpdateCmd)[0]}`"""
+
+proc dfHandler*(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``df`` command on the server running the bot and reports results via chat message. Linux only.
+  handlerizer():
+    let message = fmt"""**SSD Free Space** `{execCmdEx(ssdFree)[0]}`"""
+
+proc freeHandler*(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``free`` command on the server running the bot and reports results via chat message. Linux only.
+  handlerizer():
+    let message = fmt"""`{execCmdEx("free --human --total --giga")[0]}`"""
+
+proc cpuHandler*(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``free`` command on the server running the bot and reports results via chat message. Linux only.
+  let cpu = parseJson(execCmdEx(cpuFreeCmd)[0])["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
+  handlerizer():
+    let message = fmt"""**Total stats of all CPUs**
+    **Idle** `{cpu["idle"]}`%
+    **System** `{cpu["sys"]}`%
+    **User** `{cpu["usr"]}`%
+    **Waiting for I/O** `{cpu["iowait"]}`%
+    **Interrupt Request IRQ** `{cpu["irq"]}`%
+    **Guests** `{cpu["guest"]}`%
+    **Steal** `{cpu["steal"]}`%
+    **Soft** `{cpu["soft"]}`%
+    **Nice** `{cpu["nice"]}`%
+    **General Nice** `{cpu["gnice"]}`%"""
 
 proc dollarHandler(bot: Telebot, update: Command) {.async.} =
   ## Sends via chat message the Worldwide exchange prices + Bitcoin price + Gold price.
@@ -184,17 +214,17 @@ proc weatherHandler(bot: Telebot, update: Command) {.async.} =
 proc main() {.async.} =
   ## Main loop of the bot. It instances, init, config, run loop of the Bot.
   addHandler(newConsoleLogger(fmtStr="$time $levelname "))
-
   let bot = newTeleBot(apiKey)
-
   bot.onUpdate(handleUpdate)
-
   bot.onCommand("about", aboutHandler)
   bot.onCommand("help", aboutHandler)
   bot.onCommand("ayuda", aboutHandler)
   bot.onCommand("donate", donateHandler)
   bot.onCommand("donar", donateHandler)
   bot.onCommand("lshw", lshwHandler)
+  bot.onCommand("df", dfHandler)
+  bot.onCommand("free", freeHandler)
+  bot.onCommand("cpu", cpuHandler)
   bot.onCommand("dollar", dollarHandler)
   bot.onCommand("dolar", dollarHandler)
   bot.onCommand("clima", weatherHandler)

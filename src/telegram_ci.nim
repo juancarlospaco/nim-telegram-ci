@@ -5,8 +5,8 @@ import
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 
 when not defined(linux): {.fatal: "Cannot run on Windows, try Docker for Windows: http://docs.docker.com/docker-for-windows".}
-when not defined(ssl):   {.fatal: "Cannot run without SSL, compile with -d:ssl".}
-when defined(release):   {.passL: "-s", passC: "-flto -ffast-math -march=native".}
+when not defined(ssl): {.fatal: "Cannot run without SSL, compile with -d:ssl".}
+when defined(release): {.passL: "-s", passC: "-flto -ffast-math -march=native".}
 
 
 const
@@ -15,29 +15,34 @@ const
   owmApiKey = staticRead("openweathermapkey.txt").strip
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
   pollingInterval = 1_000 * 1_000
-  tempFolder = getTempDir()  ## Temporary folder used for temporary files at runtime, etc.
-  stripCmd = "strip --strip-all --remove-section=.comment"        ## Linux Bash command to strip the compiled binary executables.
-  upxCmd    = "upx --ultra-brute" ## Linux Bash command to compress the compiled binary executables.
-  shaCmd    = "sha1sum --tag" ## Linux Bash command to checksum the compiled binary executables.
-  gpgCmd    = "gpg --clear-sign --armor" ## Linux Bash command to Sign the compiled binary executables.
-  cutycaptCmd = "CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 "  ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net
+  tempFolder = getTempDir() ## Temporary folder used for temporary files at runtime, etc.
+  stripCmd = "strip --strip-all --remove-section=.comment" ## Linux Bash command to strip the compiled binary executables.
+  upxCmd = "upx --ultra-brute" ## Linux Bash command to compress the compiled binary executables.
+  shaCmd = "sha1sum --tag" ## Linux Bash command to checksum the compiled binary executables.
+  gpgCmd = "gpg --clear-sign --armor" ## Linux Bash command to Sign the compiled binary executables.
+  cutycaptCmd = "CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 " ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net
   # cutycaptCmd = "xvfb-run --server-args='-screen 0, 1280x1024x24' CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 "  ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net and XVFB for HeadLess Servers without X.
-  ramSize = staticExec("free --human --total --giga | awk '/^Mem:/{print $2}'").strip
-  ssdSize = staticExec("""df --human-readable --local --total --print-type | awk '$1=="total"{print $3}'""").strip
   ssdFree = """df --human-readable --local --total --print-type | awk '$1=="total"{print $5}'"""
   cpuFreeCmd = "mpstat -o JSON"
   nimbleRefreshCmd = "nimble refresh --accept --noColor"
   pipUpdateCmd = "pip install --quiet --exists-action w --upgrade --disable-pip-version-check pip virtualenv setuptools wheel pre-commit pre-commit-hooks prospector isort fades tox black pytest"
   choosenimUpdateCmd = "choosenim update self --yes --noColor ; choosenim update stable --yes --noColor"
   pythonVersion = staticExec("python3 --version").replace("Python", "").strip
-  gpuInfo = staticExec("head -n 1 /proc/driver/nvidia/gpus/0000:01:00.0/information").replace("Model:", "").strip
   apiUrl = "https://api.telegram.org/file/bot$1/".format(apiKey)
   apiFile = "https://api.telegram.org/bot$1/getFile?file_id=".format(apiKey)
+  gpuInfo = staticExec(
+    "head -n 1 /proc/driver/nvidia/gpus/0000:01:00.0/information").replace(
+    "Model:", "").strip
+  ramSize = staticExec(
+    "free --human --total --giga | awk '/^Mem:/{print $2}'").strip
+  ssdSize = staticExec(
+      """df --human-readable --local --total --print-type | awk '$1=="total"{print $3}'""").strip
 
 
 let
-  oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD", local_base: "",
-                       round_float: true, prettyprint: false, show_alternative: true)  ## OpenExchangeRates API Async Client. Used for the ``/dollar`` chat command.
+  oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD",
+      local_base: "", round_float: true, prettyprint: false,
+      show_alternative: true) ## OpenExchangeRates API Async Client. Used for the ``/dollar`` chat command.
   owmClient = AsyncOWM(timeout: 9, lang: "es", api_key: owmApiKey) ## OpenWeatherMap
   aboutText = fmt"""*Telegram CI: Continuos Build Service*
   *Description* = Builds 24/7, no VM, no hardware restrictions
@@ -57,9 +62,9 @@ let
   *Author* = _Juan Carlos_ @juancarlospaco
   *Powered by* = https://nim-lang.org
   *Donate* = https://liberapay.com/juancarlospaco/donate
-  *Build Count* = """  ## Info about the Bot itself, version, licence, git, OS, uses, etc.
+  *Build Count* = """ ## Info about the Bot itself, version, licence, git, OS, uses, etc.
 
-var counter: int   ## Integer that counts how many times the bot has been used.
+var counter: int ## Integer that counts how many times the bot has been used.
 
 
 template handlerizer(body: untyped): untyped =
@@ -86,9 +91,10 @@ template handlerizerLocation(body: untyped): untyped =
   body
   let
     geo_uri = "*GEO URI:* geo:$1,$2    ".format(latitud, longitud)
-    osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(latitud, longitud)
+    osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
+        latitud, longitud)
   var
-    msg = newMessage(update.message.chat.id,  geo_uri & osm_url)
+    msg = newMessage(update.message.chat.id, geo_uri & osm_url)
     geo_msg = newLocation(update.message.chat.id, longitud, latitud)
   msg.disableNotification = true
   geo_msg.disableNotification = true
@@ -100,7 +106,8 @@ template handlerizerDocument(body: untyped): untyped =
   ## This Template sends an attached File Document message from the ``document_file_path`` variable with the caption comment from ``document_caption``.
   #inc counter
   body
-  var document = newDocument(update.message.chat.id, "file://" & document_file_path)
+  var document = newDocument(update.message.chat.id,
+      "file://" & document_file_path)
   document.caption = document_caption.strip
   document.disableNotification = true
   discard bot.send(document)
@@ -122,7 +129,7 @@ proc staticHandler(static_file: string): CommandCallback =
     handlerizerDocument():
       let
         document_file_path = static_file
-        document_caption   = static_file
+        document_caption = static_file
   return cb
 
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
@@ -137,7 +144,8 @@ proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
-  var msg = newMessage(update.message.chat.id, fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`""")
+  var msg = newMessage(update.message.chat.id,
+      fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`""")
   msg.disableNotification = true
   msg.parseMode = "markdown"
   discard bot.send(msg)
@@ -160,7 +168,8 @@ proc freeHandler(bot: Telebot, update: Command) {.async.} =
 
 proc cpuHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``free`` command on the server running the bot and reports results via chat message.
-  let cpu = parseJson(execCmdEx(cpuFreeCmd)[0])["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
+  let cpu = parseJson(execCmdEx(cpuFreeCmd)[0]
+    )["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
   handlerizer():
     let message = fmt"""**Total stats of all CPUs**
     **Idle** `{cpu["idle"]}`%
@@ -177,19 +186,21 @@ proc cpuHandler(bot: Telebot, update: Command) {.async.} =
 proc dollarHandler(bot: Telebot, update: Command) {.async.} =
   ## Sends via chat message the Worldwide exchange prices + Bitcoin price + Gold price.
   let
-    money_json = waitFor oerClient.latest()      # Updated Prices.
-    names_json = waitFor oerClient.currencies()  # Friendly Names.
+    money_json = waitFor oerClient.latest() # Updated Prices.
+    nms = waitFor oerClient.currencies() # Friendly Names.
   var dineros = "*Dollar USD* 💲🇺🇸\n"
   for crrncy in money_json.pairs:
     if crrncy[0] in oerCurrencies:
-      dineros.add(fmt"*{crrncy[0]}* _{names_json[crrncy[0]]}_ `{crrncy[1]}`" & "\n")
+      dineros.add(fmt"*{crrncy[0]}* _{nms[crrncy[0]]}_ `{crrncy[1]}`" & "\n")
   handlerizer():
     let message = dineros
 
 proc weatherHandler(bot: Telebot, update: Command) {.async.} =
   let
-    wea = waitFor owmClient.get_current_cityname(city_name="buenos aires", country_code="AR", accurate=true)
-    uvs = waitFor owmClient.get_uv_current_coordinates(lat= -34.61, lon= -58.44)
+    wea = waitFor owmClient.get_current_cityname(city_name = "buenos aires",
+        country_code = "AR", accurate = true)
+    uvs = waitFor owmClient.get_uv_current_coordinates(
+      lat = -34.61, lon = -58.44)
     t0 = format(fromUnix(wea["sys"]["sunrise"].getInt.int64), "HH:mm")
     t1 = format(fromUnix(wea["sys"]["sunset"].getInt.int64), "HH:mm")
     dt = format(fromUnix(wea["dt"].getInt.int64), "HH:mm")
@@ -223,7 +234,7 @@ proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
     let message = msg
 
 proc main() {.async.} =
-  addHandler(newConsoleLogger(fmtStr=verboseFmtStr))
+  addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
   let bot = newTeleBot(apiKey)
   bot.onCommand("about", aboutHandler)
@@ -244,7 +255,7 @@ proc main() {.async.} =
   bot.onCommand("pipupdate", pipUpdateHandler)
   bot.onCommand("rmtmp", rmTmpHandler)
   #bot.onUpdate(handleUpdate)
-  discard nice(19.cint)  # smooth cpu priority
+  discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)
 
 

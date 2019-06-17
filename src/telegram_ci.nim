@@ -2,13 +2,17 @@ import
   asyncdispatch, httpclient, logging, json, options, osproc, parsecfg,
   strformat, strutils, terminal, times, random, posix, os, posix_utils
 
-import telebot            # nimble install telebot            https://nimble.directory/pkg/telebot
-import zip/zipfiles       # nimble install zip
-import openexchangerates
-import openweathermap
+import telebot, openexchangerates, openweathermap, zip/zipfiles
+
+when not defined(linux): {.fatal: "Cannot run on Windows, try Docker for Windows: http://docs.docker.com/docker-for-windows".}
+when not defined(ssl):   {.fatal: "Cannot run without SSL, compile with -d:ssl".}
+when defined(release):   {.passL: "-s", passC: "-flto -ffast-math -march=native".}
 
 
 const
+  apiKey = staticRead("telegramkey.txt").strip
+  oerApiKey = staticRead("openexchangerateskey.txt").strip
+  owmApiKey = staticRead("openweathermapkey.txt").strip
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
   pollingInterval = 1_000 * 1_000
   tempFolder = getTempDir()  ## Temporary folder used for temporary files at runtime, etc.
@@ -34,7 +38,7 @@ const
 let
   oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD", local_base: "",
                        round_float: true, prettyprint: false, show_alternative: true)  ## OpenExchangeRates API Async Client. Used for the ``/dollar`` chat command.
-  owmClient = AsyncOWM(timeout: 9, lang: "es", api_key: owmApiKey)
+  owmClient = AsyncOWM(timeout: 9, lang: "es", api_key: owmApiKey) ## OpenWeatherMap
   aboutText = fmt"""*Telegram CI: Continuos Build Service*
   *Description* = Builds 24/7, no VM, no hardware restrictions
   *CPU Count* = `{countProcessors()}`
@@ -122,17 +126,17 @@ proc staticHandler(static_file: string): CommandCallback =
   return cb
 
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
+  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
     let message = fmt"""`{execCmdEx("lshw -short")[0]}`"""
 
 proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
+  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
     let message = fmt"""`{execCmdEx(nimbleRefreshCmd)[0]}`"""
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message. Linux only.
+  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   var msg = newMessage(update.message.chat.id, fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`""")
   msg.disableNotification = true
   msg.parseMode = "markdown"
@@ -144,18 +148,18 @@ proc pipUpdateHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
     let message = fmt"""`{execCmdEx(pipUpdateCmd)[0]}`"""
 
-proc dfHandler*(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``df`` command on the server running the bot and reports results via chat message. Linux only.
+proc dfHandler(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``df`` command on the server running the bot and reports results via chat message.
   handlerizer():
     let message = fmt"""**SSD Free Space** `{execCmdEx(ssdFree)[0]}`"""
 
-proc freeHandler*(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``free`` command on the server running the bot and reports results via chat message. Linux only.
+proc freeHandler(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``free`` command on the server running the bot and reports results via chat message.
   handlerizer():
     let message = fmt"""`{execCmdEx("free --human --total --giga")[0]}`"""
 
-proc cpuHandler*(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``free`` command on the server running the bot and reports results via chat message. Linux only.
+proc cpuHandler(bot: Telebot, update: Command) {.async.} =
+  ## Executes a ``free`` command on the server running the bot and reports results via chat message.
   let cpu = parseJson(execCmdEx(cpuFreeCmd)[0])["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
   handlerizer():
     let message = fmt"""**Total stats of all CPUs**
@@ -210,13 +214,18 @@ proc weatherHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
     let message = msg
 
+proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
+  var msg = "*Deleted Files*\n"
+  for file in walkFiles(tempFolder / "**/*.*"):
+    msg.add file & "\n"
+    removeFile(file)
+  handlerizer():
+    let message = msg
 
 proc main() {.async.} =
-  ## Main loop of the bot. It instances, init, config, run loop of the Bot.
   addHandler(newConsoleLogger(fmtStr=verboseFmtStr))
   addHandler(newRollingFileLogger())
   let bot = newTeleBot(apiKey)
-  #bot.onUpdate(handleUpdate)
   bot.onCommand("about", aboutHandler)
   bot.onCommand("help", aboutHandler)
   bot.onCommand("ayuda", aboutHandler)
@@ -233,9 +242,9 @@ proc main() {.async.} =
   bot.onCommand("nimblerefresh", nimbleRefreshHandler)
   bot.onCommand("choosenimupdate", choosenimHandler)
   bot.onCommand("pipupdate", pipUpdateHandler)
-
+  bot.onCommand("rmtmp", rmTmpHandler)
+  #bot.onUpdate(handleUpdate)
   discard nice(19.cint)  # smooth cpu priority
-
   bot.poll(pollingInterval)
 
 

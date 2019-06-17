@@ -15,3 +15,4 @@ requires "nim >= 0.20.0"
 requires telebot
 requires zip
 requires webp
+requires firejail

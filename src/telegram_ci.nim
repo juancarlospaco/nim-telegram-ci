@@ -1,7 +1,6 @@
 import
   asyncdispatch, httpclient, logging, json, options, osproc, parsecfg,
-  strformat, strutils, terminal, times, random, posix, os, posix_utils,
-  marshal
+  strformat, strutils, terminal, times, random, posix, os, posix_utils
 
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 
@@ -14,7 +13,8 @@ const
   apiKey = staticRead("telegramkey.txt").strip
   oerApiKey = staticRead("openexchangerateskey.txt").strip
   owmApiKey = staticRead("openweathermapkey.txt").strip
-  channelUser = staticRead("telegramchannel.txt").strip
+  channelUserStr = staticRead("telegramchannel.txt").strip
+  channelLink = staticRead("telegramchannellink.txt").strip
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
   pollingInterval = 1_000 * 1_000
   tempFolder = getTempDir() ## Temporary folder used for temporary files at runtime, etc.
@@ -42,6 +42,7 @@ const
 
 
 let
+  channelUser = channelUserStr.parseInt.int64
   oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD",
       local_base: "", round_float: true, prettyprint: false,
       show_alternative: true) ## OpenExchangeRates API Async Client. Used for the ``/dollar`` chat command.
@@ -71,10 +72,12 @@ var counter: int ## Integer that counts how many times the bot has been used.
 
 template handlerizer(body: untyped): untyped =
   ## This Template sends a markdown text message from the ``message`` variable.
-  #inc counter
+  inc counter
+  var send2user = true
   body
-  var msg = newMessage(update.message.chat.id, $message.strip())
-  # var msg = newMessage(channelUser, $message.strip())
+  # var msg = newMessage(update.message.chat.id, $message.strip()) # Send to User
+  var msg = newMessage(if send2user: update.message.chat.id else: channelUser,
+    $message.strip()) #if send2user,sent to User via private,else send to public channel.
   msg.disableNotification = true
   msg.parseMode = "markdown"
   discard bot.send(msg)
@@ -82,8 +85,9 @@ template handlerizer(body: untyped): untyped =
 template handlerizerPhoto(body: untyped): untyped =
   ## This Template sends a photo image message from the ``photo_path`` variable with the caption comment from ``photo_caption``.
   inc counter
+  var send2user = true
   body
-  var msg = newPhoto(update.message.chat.id, photo_path)
+  var msg = newPhoto(if send2user: update.message.chat.id else: channelUser, photo_path)              # Send to Channel
   msg.caption = photo_caption
   msg.disableNotification = true
   discard bot.send(msg)
@@ -91,14 +95,15 @@ template handlerizerPhoto(body: untyped): untyped =
 template handlerizerLocation(body: untyped): untyped =
   ## This Template sends a Geo Location message from the ``latitud`` and ``longitud`` variables.
   inc counter
+  var send2user = true
   body
   let
     geo_uri = "*GEO URI:* geo:$1,$2    ".format(latitud, longitud)
     osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
         latitud, longitud)
   var
-    msg = newMessage(update.message.chat.id, geo_uri & osm_url)
-    geo_msg = newLocation(update.message.chat.id, longitud, latitud)
+    msg = newMessage(if send2user: update.message.chat.id else: channelUser, geo_uri & osm_url)
+    geo_msg = newLocation(if send2user: update.message.chat.id else: channelUser, longitud, latitud)
   msg.disableNotification = true
   geo_msg.disableNotification = true
   msg.parseMode = "markdown"
@@ -107,10 +112,11 @@ template handlerizerLocation(body: untyped): untyped =
 
 template handlerizerDocument(body: untyped): untyped =
   ## This Template sends an attached File Document message from the ``document_file_path`` variable with the caption comment from ``document_caption``.
-  #inc counter
+  inc counter
+  var send2user = true
   body
-  var document = newDocument(update.message.chat.id,
-      "file://" & document_file_path)
+  var document = newDocument(if send2user: update.message.chat.id else: channelUser,
+    "file://" & document_file_path)
   document.caption = document_caption.strip
   document.disableNotification = true
   discard bot.send(document)
@@ -138,36 +144,41 @@ proc staticHandler(static_file: string): CommandCallback =
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
+    var send2user = false
     let message = fmt"""`{execCmdEx("lshw -short")[0]}`"""
 
 proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
+    var send2user = false
     let message = fmt"""`{execCmdEx(nimbleRefreshCmd)[0]}`"""
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
-  var msg = newMessage(update.message.chat.id,
-      fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`""")
-  msg.disableNotification = true
-  msg.parseMode = "markdown"
-  discard bot.send(msg)
-  # handlerizer():
-  #   let message = fmt"""`{execCmdEx("choosenim update devel --yes --noColor; choosenim stable")[0]}`"""
+  handlerizer():
+    var send2user = false
+    let message = fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`"""
 
 proc pipUpdateHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
+    var send2user = false
     let message = fmt"""`{execCmdEx(pipUpdateCmd)[0]}`"""
 
 proc dfHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``df`` command on the server running the bot and reports results via chat message.
   handlerizer():
+    var send2user = false
     let message = fmt"""**SSD Free Space** `{execCmdEx(ssdFree)[0]}`"""
 
 proc freeHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``free`` command on the server running the bot and reports results via chat message.
   handlerizer():
+    var send2user = false
     let message = fmt"""`{execCmdEx("free --human --total --giga")[0]}`"""
+
+proc channelHandler(bot: Telebot, update: Command) {.async.} =
+  handlerizer():
+    let message = channelLink
 
 proc cpuHandler(bot: Telebot, update: Command) {.async.} =
   ## Executes a ``free`` command on the server running the bot and reports results via chat message.
@@ -237,7 +248,7 @@ proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
     let message = msg
 
 proc echoHandler(bot: Telebot, update: Command) {.async.} =
-  var msg = fmt"""*Echo*
+  let echoData = fmt"""*Echo*
   *Your Username* `{ update.message.chat.username }`
   *Your First Name* `{ update.message.chat.first_name }`
   *Your Last Name* `{ update.message.chat.last_name }`
@@ -246,8 +257,10 @@ proc echoHandler(bot: Telebot, update: Command) {.async.} =
   *Message ID* `{ update.message.messageId }`
   *Message Text* `{ update.message.text }`
   _This is all information about you that a Bot can see._"""
-  handlerizer():
-    let message = msg
+  var msg = newMessage(update.message.chat.id, echoData)
+  msg.disableNotification = true
+  msg.parseMode = "markdown"
+  discard bot.send(msg)
 
 
 proc main() {.async.} =
@@ -272,6 +285,8 @@ proc main() {.async.} =
   bot.onCommand("pipupdate", pipUpdateHandler)
   bot.onCommand("rmtmp", rmTmpHandler)
   bot.onCommand("echo", echoHandler)
+  bot.onCommand("channel", channelHandler)
+  bot.onCommand("link", channelHandler)
   #bot.onUpdate(handleUpdate)
   discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)

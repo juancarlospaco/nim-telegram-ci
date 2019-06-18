@@ -28,7 +28,9 @@ template handlerizerPhoto(body: untyped): untyped =
   ## This Template sends a photo image message from the ``photo_path`` variable with the caption comment from ``photo_caption``.
   inc counter
   body
-  var msg = newPhoto(if declared(send2channel): channelUser else: update.message.chat.id, photo_path)
+  var msg = newPhoto(
+    if declared(send2channel): channelUser else: update.message.chat.id,
+    photo_path)
   msg.caption = photo_caption
   msg.disableNotification = true
   discard bot.send(msg)
@@ -42,8 +44,12 @@ template handlerizerLocation(body: untyped): untyped =
     osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
         latitud, longitud)
   var
-    msg = newMessage(if declared(send2channel): channelUser else: update.message.chat.id, geo_uri & osm_url)
-    geo_msg = newLocation(if declared(send2channel): channelUser else: update.message.chat.id, longitud, latitud)
+    msg = newMessage(
+      if declared(send2channel): channelUser else: update.message.chat.id,
+      geo_uri & osm_url)
+    geo_msg = newLocation(
+      if declared(send2channel): channelUser else: update.message.chat.id,
+      longitud, latitud)
   msg.disableNotification = true
   geo_msg.disableNotification = true
   msg.parseMode = "markdown"
@@ -200,13 +206,16 @@ proc echoHandler(bot: Telebot, update: Command) {.async.} =
 
 proc urlHandler(bot: Telebot, update: Command) {.async.} =
   let url = update.message.text.get.replace("/url", "").strip.quoteShell
-  if url.startsWith("http://") or url.startsWith("https://") and url.len < 1_000:
-    let (output0, exitCode0) = execCmdEx(cutycaptCmd & "--out=" & cutycaptPdf & " --url=" & url)
+  if url.startsWith("http://") or url.startsWith(
+      "https://") and url.len < 1_000:
+    let (output0, exitCode0) = execCmdEx(
+        cutycaptCmd & "--out=" & cutycaptPdf & " --url=" & url)
     if exitCode0 == 0:
       handlerizerDocument():
         let document_file_path = cutycaptPdf
         let document_caption = url
-    let (output1, exitCode1) = execCmdEx(cutycaptCmd & "--out=" & cutycaptJpg & " --url=" & url)
+    let (output1, exitCode1) = execCmdEx(
+        cutycaptCmd & "--out=" & cutycaptJpg & " --url=" & url)
     if exitCode1 == 0:
       handlerizerDocument():
         let document_file_path = cutycaptJpg
@@ -229,6 +238,7 @@ proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
   let bot = newTeleBot(apiKey)
+  # No parameters
   bot.onCommand("about", aboutHandler)
   bot.onCommand("help", aboutHandler)
   bot.onCommand("ayuda", aboutHandler)
@@ -248,9 +258,10 @@ proc main() {.async.} =
   bot.onCommand("rmtmp", rmTmpHandler)
   bot.onCommand("echo", echoHandler)
   bot.onCommand("channel", channelHandler)
+  bot.onCommand("uptime", uptimeHandler)
+  # Use parameters
   bot.onCommand("url", urlHandler)
   bot.onCommand("geo", geoHandler)
-  bot.onCommand("uptime", uptimeHandler)
   #bot.onUpdate(handleUpdate)
   discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)

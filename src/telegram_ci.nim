@@ -17,11 +17,11 @@ const
   channelLink = staticRead("telegramchannellink.txt").strip
   oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
   pollingInterval = 1_000 * 1_000
-  tempFolder = getTempDir() ## Temporary folder used for temporary files at runtime, etc.
-  stripCmd = "strip --strip-all --remove-section=.comment" ## Linux Bash command to strip the compiled binary executables.
-  upxCmd = "upx --ultra-brute" ## Linux Bash command to compress the compiled binary executables.
-  shaCmd = "sha1sum --tag" ## Linux Bash command to checksum the compiled binary executables.
-  gpgCmd = "gpg --clear-sign --armor" ## Linux Bash command to Sign the compiled binary executables.
+  tempFolder = getTempDir()
+  stripCmd = "strip --strip-all --remove-section=.comment"
+  upxCmd = "upx --ultra-brute"
+  shaCmd = "sha1sum --tag"
+  gpgCmd = "gpg --clear-sign --armor"
   cutycaptCmd = "CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 " ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net
   # cutycaptCmd = "xvfb-run --server-args='-screen 0, 1280x1024x24' CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 "  ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net and XVFB for HeadLess Servers without X.
   ssdFree = """df --human-readable --local --total --print-type | awk '$1=="total"{print $5}'"""
@@ -45,7 +45,7 @@ let
   channelUser = channelUserStr.parseInt.int64
   oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD",
       local_base: "", round_float: true, prettyprint: false,
-      show_alternative: true) ## OpenExchangeRates API Async Client. Used for the ``/dollar`` chat command.
+      show_alternative: true) ## OpenExchangeRates
   owmClient = AsyncOWM(timeout: 9, lang: "es", api_key: owmApiKey) ## OpenWeatherMap
   aboutText = fmt"""*Telegram CI: Continuos Build Service*
   *Description* = Builds 24/7, no VM, no hardware restrictions
@@ -64,8 +64,11 @@ let
   *Server Time* = `{$now()}`
   *Author* = _Juan Carlos_ @juancarlospaco
   *Powered by* = https://nim-lang.org
+  *Bot* = `@nimlang_bot`
+  *CI* = https://t.me/NimArgentinaCI
+  *Group* = https://t.me/NimArgentina
   *Donate* = https://liberapay.com/juancarlospaco/donate
-  *Build Count* = """ ## Info about the Bot itself, version, licence, git, OS, uses, etc.
+  *Build Count* = """
 
 var counter: int ## Integer that counts how many times the bot has been used.
 
@@ -75,7 +78,6 @@ template handlerizer(body: untyped): untyped =
   inc counter
   var send2user = true
   body
-  # var msg = newMessage(update.message.chat.id, $message.strip()) # Send to User
   var msg = newMessage(if send2user: update.message.chat.id else: channelUser,
     $message.strip()) #if send2user,sent to User via private,else send to public channel.
   msg.disableNotification = true
@@ -87,7 +89,7 @@ template handlerizerPhoto(body: untyped): untyped =
   inc counter
   var send2user = true
   body
-  var msg = newPhoto(if send2user: update.message.chat.id else: channelUser, photo_path)              # Send to Channel
+  var msg = newPhoto(if send2user: update.message.chat.id else: channelUser, photo_path)
   msg.caption = photo_caption
   msg.disableNotification = true
   discard bot.send(msg)
@@ -123,17 +125,14 @@ template handlerizerDocument(body: untyped): untyped =
 
 
 proc aboutHandler(bot: Telebot, update: Command) {.async.} =
-  ## Sends via chat message the About the bot info.
   handlerizer():
     let message = aboutText & $counter
 
 proc donateHandler(bot: Telebot, update: Command) {.async.} =
-  ## Sends via chat message the Donations info.
   handlerizer():
     let message = "https://liberapay.com/juancarlospaco/donate"
 
 proc staticHandler(static_file: string): CommandCallback =
-  ## Sends via chat message a static file from the plugins folder on the server running the bot.
   proc cb(bot: Telebot, update: Command) {.async.} =
     handlerizerDocument():
       let
@@ -142,19 +141,16 @@ proc staticHandler(static_file: string): CommandCallback =
   return cb
 
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
     var send2user = false
     let message = fmt"""`{execCmdEx("lshw -short")[0]}`"""
 
 proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
     var send2user = false
     let message = fmt"""`{execCmdEx(nimbleRefreshCmd)[0]}`"""
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``lshw`` command on the server running the bot and reports results via chat message.
   handlerizer():
     var send2user = false
     let message = fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`"""
@@ -165,13 +161,11 @@ proc pipUpdateHandler(bot: Telebot, update: Command) {.async.} =
     let message = fmt"""`{execCmdEx(pipUpdateCmd)[0]}`"""
 
 proc dfHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``df`` command on the server running the bot and reports results via chat message.
   handlerizer():
     var send2user = false
     let message = fmt"""**SSD Free Space** `{execCmdEx(ssdFree)[0]}`"""
 
 proc freeHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``free`` command on the server running the bot and reports results via chat message.
   handlerizer():
     var send2user = false
     let message = fmt"""`{execCmdEx("free --human --total --giga")[0]}`"""
@@ -181,7 +175,6 @@ proc channelHandler(bot: Telebot, update: Command) {.async.} =
     let message = channelLink
 
 proc cpuHandler(bot: Telebot, update: Command) {.async.} =
-  ## Executes a ``free`` command on the server running the bot and reports results via chat message.
   let cpu = parseJson(execCmdEx(cpuFreeCmd)[0]
     )["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
   handlerizer():
@@ -198,7 +191,6 @@ proc cpuHandler(bot: Telebot, update: Command) {.async.} =
     **General Nice** `{cpu["gnice"]}`%"""
 
 proc dollarHandler(bot: Telebot, update: Command) {.async.} =
-  ## Sends via chat message the Worldwide exchange prices + Bitcoin price + Gold price.
   let
     money_json = waitFor oerClient.latest() # Updated Prices.
     nms = waitFor oerClient.currencies() # Friendly Names.

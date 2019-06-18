@@ -16,3 +16,5 @@ choosenimupdate - choosenim update
 pipupdate - pip update
 rmtmp - Clean out temporary folders
 echo - Echo back data (Nick, UserID, etc)
+url - HTTP URL to PDF and JPG
+geo - GEO URL Float Coords to OpenStreetMap,format: lat,lon

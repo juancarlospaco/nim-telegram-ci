@@ -5,3 +5,5 @@
 *.log
 src/telegram_ci
 src/*.txt
+src/constants.nim
+src/variables.nim

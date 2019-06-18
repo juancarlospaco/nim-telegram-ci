@@ -5,70 +5,11 @@ import
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 
 when not defined(linux): {.fatal: "Cannot run on Windows, try Docker for Windows: http://docs.docker.com/docker-for-windows".}
-when not defined(ssl): {.fatal: "Cannot run without SSL, compile with -d:ssl".}
+# when not defined(ssl): {.fatal: "Cannot run without SSL, compile with -d:ssl".}
 when defined(release): {.passL: "-s", passC: "-flto -ffast-math -march=native".}
 
-
-const
-  apiKey = staticRead("telegramkey.txt").strip
-  oerApiKey = staticRead("openexchangerateskey.txt").strip
-  owmApiKey = staticRead("openweathermapkey.txt").strip
-  channelUserStr = staticRead("telegramchannel.txt").strip
-  channelLink = staticRead("telegramchannellink.txt").strip
-  oerCurrencies = "EUR,BGP,RUB,ARS,BRL,CNY,JPY,BTC,ETH,LTC,DOGE,XAU,UYU,PYG,BOB,CLP,CAD"
-  pollingInterval = 1_000 * 1_000
-  tempFolder = getTempDir()
-  stripCmd = "strip --strip-all --remove-section=.comment"
-  upxCmd = "upx --ultra-brute"
-  shaCmd = "sha1sum --tag"
-  gpgCmd = "gpg --clear-sign --armor"
-  cutycaptCmd = "CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 " ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net
-  # cutycaptCmd = "xvfb-run --server-args='-screen 0, 1280x1024x24' CutyCapt --insecure --smooth --private-browsing=on --plugins=on --header=DNT:1 --delay=9 --min-height=800 --min-width=1280 "  ## Linux Bash command to take full Screenshots of Web pages from a link, we use Cutycapt http://cutycapt.sourceforge.net and XVFB for HeadLess Servers without X.
-  ssdFree = """df --human-readable --local --total --print-type | awk '$1=="total"{print $5}'"""
-  cpuFreeCmd = "mpstat -o JSON"
-  nimbleRefreshCmd = "nimble refresh --accept --noColor"
-  pipUpdateCmd = "pip install --quiet --exists-action w --upgrade --disable-pip-version-check pip virtualenv setuptools wheel pre-commit pre-commit-hooks prospector isort fades tox black pytest"
-  choosenimUpdateCmd = "choosenim update self --yes --noColor ; choosenim update stable --yes --noColor"
-  pythonVersion = staticExec("python3 --version").replace("Python", "").strip
-  apiUrl = "https://api.telegram.org/file/bot$1/".format(apiKey)
-  apiFile = "https://api.telegram.org/bot$1/getFile?file_id=".format(apiKey)
-  gpuInfo = staticExec(
-    "head -n 1 /proc/driver/nvidia/gpus/0000:01:00.0/information").replace(
-    "Model:", "").strip
-  ramSize = staticExec(
-    "free --human --total --giga | awk '/^Mem:/{print $2}'").strip
-  ssdSize = staticExec(
-      """df --human-readable --local --total --print-type | awk '$1=="total"{print $3}'""").strip
-
-
-let
-  channelUser = channelUserStr.parseInt.int64
-  oerClient = AsyncOER(timeout: 9, api_key: oerApiKey, base: "USD",
-      local_base: "", round_float: true, prettyprint: false,
-      show_alternative: true) ## OpenExchangeRates
-  owmClient = AsyncOWM(timeout: 9, lang: "es", api_key: owmApiKey) ## OpenWeatherMap
-  aboutText = fmt"""*Telegram CI: Continuos Build Service*
-  *Description* = Builds 24/7, no VM, no hardware restrictions
-  *CPU Count* = `{countProcessors()}`
-  *RAM Size* = `{ramSize}`
-  *SSD Size* = `{ssdSize}`
-  *GPU Info* = `{gpuInfo}`
-  *Uptime* = `{execCmdEx("uptime --pretty").output.strip}`
-  *Linux* = `{uname().release}` 🐧
-  *Arch* = `{hostCPU.toUpperAscii}` 💻
-  *Nim* = `{NimVersion}` 👑
-  *Python* = `{pythonVersion}` 🐍
-  *Compiled* = `{CompileDate} {CompileTime}` ⏰
-  *SSL* = `{defined(ssl)}` 🔐
-  *Release* = `{defined(release)}`
-  *Server Time* = `{$now()}`
-  *Author* = _Juan Carlos_ @juancarlospaco
-  *Powered by* = https://nim-lang.org
-  *Bot* = `@nimlang_bot`
-  *CI* = https://t.me/NimArgentinaCI
-  *Group* = https://t.me/NimArgentina
-  *Donate* = https://liberapay.com/juancarlospaco/donate
-  *Build Count* = """
+include "constants.nim"
+include "variables.nim"
 
 var counter: int ## Integer that counts how many times the bot has been used.
 
@@ -76,9 +17,8 @@ var counter: int ## Integer that counts how many times the bot has been used.
 template handlerizer(body: untyped): untyped =
   ## This Template sends a markdown text message from the ``message`` variable.
   inc counter
-  var send2user = true
   body
-  var msg = newMessage(if send2user: update.message.chat.id else: channelUser,
+  var msg = newMessage(if declared(send2channel): channelUser else: update.message.chat.id,
     $message.strip()) #if send2user,sent to User via private,else send to public channel.
   msg.disableNotification = true
   msg.parseMode = "markdown"
@@ -87,9 +27,8 @@ template handlerizer(body: untyped): untyped =
 template handlerizerPhoto(body: untyped): untyped =
   ## This Template sends a photo image message from the ``photo_path`` variable with the caption comment from ``photo_caption``.
   inc counter
-  var send2user = true
   body
-  var msg = newPhoto(if send2user: update.message.chat.id else: channelUser, photo_path)
+  var msg = newPhoto(if declared(send2channel): channelUser else: update.message.chat.id, photo_path)
   msg.caption = photo_caption
   msg.disableNotification = true
   discard bot.send(msg)
@@ -97,15 +36,14 @@ template handlerizerPhoto(body: untyped): untyped =
 template handlerizerLocation(body: untyped): untyped =
   ## This Template sends a Geo Location message from the ``latitud`` and ``longitud`` variables.
   inc counter
-  var send2user = true
   body
   let
     geo_uri = "*GEO URI:* geo:$1,$2    ".format(latitud, longitud)
     osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
         latitud, longitud)
   var
-    msg = newMessage(if send2user: update.message.chat.id else: channelUser, geo_uri & osm_url)
-    geo_msg = newLocation(if send2user: update.message.chat.id else: channelUser, longitud, latitud)
+    msg = newMessage(if declared(send2channel): channelUser else: update.message.chat.id, geo_uri & osm_url)
+    geo_msg = newLocation(if declared(send2channel): channelUser else: update.message.chat.id, longitud, latitud)
   msg.disableNotification = true
   geo_msg.disableNotification = true
   msg.parseMode = "markdown"
@@ -115,9 +53,9 @@ template handlerizerLocation(body: untyped): untyped =
 template handlerizerDocument(body: untyped): untyped =
   ## This Template sends an attached File Document message from the ``document_file_path`` variable with the caption comment from ``document_caption``.
   inc counter
-  var send2user = true
   body
-  var document = newDocument(if send2user: update.message.chat.id else: channelUser,
+  var document = newDocument(
+    if declared(send2channel): channelUser else: update.message.chat.id,
     "file://" & document_file_path)
   document.caption = document_caption.strip
   document.disableNotification = true
@@ -142,33 +80,38 @@ proc staticHandler(static_file: string): CommandCallback =
 
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""`{execCmdEx("lshw -short")[0]}`"""
 
 proc nimbleRefreshHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""`{execCmdEx(nimbleRefreshCmd)[0]}`"""
 
 proc choosenimHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""`{execCmdEx(choosenimUpdateCmd)[0]}`"""
 
 proc pipUpdateHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""`{execCmdEx(pipUpdateCmd)[0]}`"""
 
 proc dfHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""**SSD Free Space** `{execCmdEx(ssdFree)[0]}`"""
 
 proc freeHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
-    var send2user = false
+    let send2channel = true
     let message = fmt"""`{execCmdEx("free --human --total --giga")[0]}`"""
+
+proc uptimeHandler(bot: Telebot, update: Command) {.async.} =
+  handlerizer():
+    let send2channel = true
+    let message = fmt"""`{execCmdEx("uptime --pretty")[0]}`"""
 
 proc channelHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
@@ -237,6 +180,7 @@ proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
     msg.add file & "\n"
     removeFile(file)
   handlerizer():
+    let send2channel = true
     let message = msg
 
 proc echoHandler(bot: Telebot, update: Command) {.async.} =
@@ -253,6 +197,32 @@ proc echoHandler(bot: Telebot, update: Command) {.async.} =
   msg.disableNotification = true
   msg.parseMode = "markdown"
   discard bot.send(msg)
+
+proc urlHandler(bot: Telebot, update: Command) {.async.} =
+  let url = update.message.text.get.replace("/url", "").strip.quoteShell
+  if url.startsWith("http://") or url.startsWith("https://") and url.len < 1_000:
+    let (output0, exitCode0) = execCmdEx(cutycaptCmd & "--out=" & cutycaptPdf & " --url=" & url)
+    if exitCode0 == 0:
+      handlerizerDocument():
+        let document_file_path = cutycaptPdf
+        let document_caption = url
+    let (output1, exitCode1) = execCmdEx(cutycaptCmd & "--out=" & cutycaptJpg & " --url=" & url)
+    if exitCode1 == 0:
+      handlerizerDocument():
+        let document_file_path = cutycaptJpg
+        let document_caption = url
+
+proc geoHandler(bot: Telebot, update: Command) {.async.} =
+  let url = update.message.text.get.replace("/geo", "").strip
+  echo url
+  if url.split(",").len == 2 and url.len < 20:
+    let lat_lon = url.split(",")
+    echo lat_lon
+    if lat_lon.len == 2 and lat_lon[0].len > 2 and lat_lon[1].len > 2:
+      echo lat_lon[0], lat_lon[1]
+      handlerizerLocation():
+        let latitud = parseFloat(lat_lon[0])
+        let longitud = parseFloat(lat_lon[1])
 
 
 proc main() {.async.} =
@@ -278,7 +248,9 @@ proc main() {.async.} =
   bot.onCommand("rmtmp", rmTmpHandler)
   bot.onCommand("echo", echoHandler)
   bot.onCommand("channel", channelHandler)
-  bot.onCommand("link", channelHandler)
+  bot.onCommand("url", urlHandler)
+  bot.onCommand("geo", geoHandler)
+  bot.onCommand("uptime", uptimeHandler)
   #bot.onUpdate(handleUpdate)
   discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)

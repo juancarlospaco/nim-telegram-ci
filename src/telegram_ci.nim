@@ -127,6 +127,7 @@ proc cpuHandler(bot: Telebot, update: Command) {.async.} =
   let cpu = parseJson(execCmdEx(cpuFreeCmd)[0]
     )["sysstat"]["hosts"][0]["statistics"][0]["cpu-load"][0]
   handlerizer():
+    let send2channel = true
     let message = fmt"""**Total stats of all CPUs**
     **Idle** `{cpu["idle"]}`%
     **System** `{cpu["sys"]}`%
@@ -183,7 +184,7 @@ proc weatherHandler(bot: Telebot, update: Command) {.async.} =
 proc rmTmpHandler(bot: Telebot, update: Command) {.async.} =
   var msg = "*Deleted Files*\n"
   for file in walkFiles(tempFolder / "**/*.*"):
-    msg.add file & "\n"
+    msg.add file.quoteShell & "\n"
     removeFile(file)
   handlerizer():
     let send2channel = true
@@ -199,10 +200,8 @@ proc echoHandler(bot: Telebot, update: Command) {.async.} =
   *Message ID* `{ update.message.messageId }`
   *Message Text* `{ update.message.text }`
   _This is all information about you that a Bot can see._"""
-  var msg = newMessage(update.message.chat.id, echoData)
-  msg.disableNotification = true
-  msg.parseMode = "markdown"
-  discard bot.send(msg)
+  handlerizer():
+    let message = echoData
 
 proc urlHandler(bot: Telebot, update: Command) {.async.} =
   let url = update.message.text.get.replace("/url", "").strip.quoteShell
@@ -220,18 +219,21 @@ proc urlHandler(bot: Telebot, update: Command) {.async.} =
       handlerizerDocument():
         let document_file_path = cutycaptJpg
         let document_caption = url
+  else:
+    handlerizer():
+      let message = "*Syntax:*\n`/url https://YOUR-URL-HERE`"
 
 proc geoHandler(bot: Telebot, update: Command) {.async.} =
   let url = update.message.text.get.replace("/geo", "").strip
-  echo url
   if url.split(",").len == 2 and url.len < 20:
     let lat_lon = url.split(",")
-    echo lat_lon
     if lat_lon.len == 2 and lat_lon[0].len > 2 and lat_lon[1].len > 2:
-      echo lat_lon[0], lat_lon[1]
       handlerizerLocation():
         let latitud = parseFloat(lat_lon[0])
         let longitud = parseFloat(lat_lon[1])
+  else:
+    handlerizer():
+      let message = "*Syntax:*\n`/geo 42.5,66.6`"
 
 
 proc main() {.async.} =

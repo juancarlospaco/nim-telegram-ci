@@ -1,6 +1,6 @@
 import
-  asyncdispatch, httpclient, logging, json, options, osproc, parsecfg,
-  strformat, strutils, terminal, times, random, posix, os, posix_utils
+  asyncdispatch, httpclient, logging, json, options, osproc, strformat,
+  strutils, times, random, posix, os, posix_utils
 
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 

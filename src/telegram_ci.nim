@@ -226,12 +226,30 @@ proc geoHandler(bot: Telebot, update: Command) {.async.} =
     handlerizer():
       let message = "*Syntax:*\n`/geo 42.5,66.6`"
 
+proc startHandler(bot: Telebot, update: Command) {.async.} =
+  handlerizer():  # Show some explanations, wait 10 sec & continue.
+    let message = msg0
+  await sleepAsync(15_000)
+  var  # Start just shows instructions to add a Git URL to the CI.
+    mesage = newMessage(update.message.chat.id, msg1)
+    b0 = initInlineKeyboardButton("NimScript Description")
+    b1 = initInlineKeyboardButton("NimScript Functions")
+    b2 = initInlineKeyboardButton("NimScript Project")
+    b3 = initInlineKeyboardButton("CI Channel")
+  b0.url = "https://nim-lang.org/docs/nims.html".some
+  b1.url = "https://nim-lang.org/docs/nimscript.html".some
+  b2.url = "https://github.com/kaushalmodi/nim_config#list-available-tasks".some
+  b3.url = "https://t.me/s/NimArgentinaCI".some
+  mesage.replyMarkup = newInlineKeyboardMarkup(@[b0, b1], @[b2, b3])
+  discard await bot.send(mesage)
+
 
 proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
   let bot = newTeleBot(apiKey)
   # No parameters
+  bot.onCommand("start", startHandler)
   bot.onCommand("about", aboutHandler)
   bot.onCommand("help", aboutHandler)
   bot.onCommand("ayuda", aboutHandler)

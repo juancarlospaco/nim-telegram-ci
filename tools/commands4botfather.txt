@@ -1,3 +1,4 @@
+start - Add your Project to the CI Services
 about - About this Bot
 help - Help
 ayuda - Ayuda

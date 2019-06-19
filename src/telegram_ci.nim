@@ -76,14 +76,6 @@ proc donateHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
     let message = "https://liberapay.com/juancarlospaco/donate"
 
-proc staticHandler(static_file: string): CommandCallback =
-  proc cb(bot: Telebot, update: Command) {.async.} =
-    handlerizerDocument():
-      let
-        document_file_path = static_file
-        document_caption = static_file
-  return cb
-
 proc lshwHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
     let send2channel = true

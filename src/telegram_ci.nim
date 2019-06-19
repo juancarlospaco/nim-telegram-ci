@@ -10,8 +10,7 @@ when defined(defUserAgent) and not defined(ssl): {.hint: "For SSL use -d:ssl".}
 when defined(release): {.passL: "-s", passC: "-flto -ffast-math -march=native".}
 else: {.checks: on, warnings: on, hints: on, hint[LineTooLong]: off.}
 
-include "constants.nim"
-include "variables.nim"
+include "constants.nim", "variables.nim"
 
 var counter: int ## Integer that counts how many times the bot has been used.
 

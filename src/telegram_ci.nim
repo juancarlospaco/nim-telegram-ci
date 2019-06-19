@@ -4,9 +4,11 @@ import
 
 import telebot, openexchangerates, openweathermap, zip/zipfiles
 
-when not defined(linux): {.fatal: "Cannot run on Windows, try Docker for Windows: http://docs.docker.com/docker-for-windows".}
-# when not defined(ssl): {.fatal: "Cannot run without SSL, compile with -d:ssl".}
+when defined(arm) or defined(i386): {.hint: "32-Bit x86 and ARM is Untested".}
+when defined(macosx) or defined(windows): {.hint: "Windows,Apple is Untested".}
+when defined(defUserAgent) and not defined(ssl): {.hint: "For SSL use -d:ssl".}
 when defined(release): {.passL: "-s", passC: "-flto -ffast-math -march=native".}
+else: {.checks: on, warnings: on, hints: on, hint[LineTooLong]: off.}
 
 include "constants.nim"
 include "variables.nim"
@@ -40,30 +42,30 @@ template handlerizerLocation(body: untyped): untyped =
   inc counter
   body
   let
-    geo_uri = "*GEO URI:* geo:$1,$2    ".format(latitud, longitud)
-    osm_url = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
+    geoUri = "*GEO URI:* geo:$1,$2    ".format(latitud, longitud)
+    osmUrl = "*OSM URL:* https://www.openstreetmap.org/?mlat=$1&mlon=$2".format(
         latitud, longitud)
   var
     msg = newMessage(
       if declared(send2channel): channelUser else: update.message.chat.id,
-      geo_uri & osm_url)
-    geo_msg = newLocation(
+      geoUri & osmUrl)
+    geoMsg = newLocation(
       if declared(send2channel): channelUser else: update.message.chat.id,
       longitud, latitud)
   msg.disableNotification = true
-  geo_msg.disableNotification = true
+  geoMsg.disableNotification = true
   msg.parseMode = "markdown"
-  discard bot.send(geo_msg)
+  discard bot.send(geoMsg)
   discard bot.send(msg)
 
 template handlerizerDocument(body: untyped): untyped =
-  ## This Template sends an attached File Document message from the ``document_file_path`` variable with the caption comment from ``document_caption``.
+  ## This Template sends an attached File Document message from the ``documentFilePath`` variable with the caption comment from ``documentCaption``.
   inc counter
   body
   var document = newDocument(
     if declared(send2channel): channelUser else: update.message.chat.id,
-    "file://" & document_file_path)
-  document.caption = document_caption.strip
+    "file://" & documentFilePath)
+  document.caption = documentCaption.strip
   document.disableNotification = true
   discard bot.send(document)
 
@@ -134,10 +136,10 @@ proc cpuHandler(bot: Telebot, update: Command) {.async.} =
 
 proc dollarHandler(bot: Telebot, update: Command) {.async.} =
   let
-    money_json = waitFor oerClient.latest() # Updated Prices.
+    moneyJson = waitFor oerClient.latest() # Updated Prices.
     nms = waitFor oerClient.currencies() # Friendly Names.
   var dineros = "*Dollar USD* 💲🇺🇸\n"
-  for crrncy in money_json.pairs:
+  for crrncy in moneyJson.pairs:
     if crrncy[0] in oerCurrencies:
       dineros.add(fmt"*{crrncy[0]}* _{nms[crrncy[0]]}_ `{crrncy[1]}`" & "\n")
   handlerizer():
@@ -199,18 +201,16 @@ proc urlHandler(bot: Telebot, update: Command) {.async.} =
   let url = update.message.text.get.replace("/url", "").strip.quoteShell
   if url.startsWith("http://") or url.startsWith(
       "https://") and url.len < 1_000:
-    let (output0, exitCode0) = execCmdEx(
-        cutycaptCmd & "--out=" & cutycaptPdf & " --url=" & url)
-    if exitCode0 == 0:
+    if execCmdEx(cutycaptCmd & "--out=" & cutycaptPdf & " --url=" &
+        url).exitCode == 0:
       handlerizerDocument():
-        let document_file_path = cutycaptPdf
-        let document_caption = url
-    let (output1, exitCode1) = execCmdEx(
-        cutycaptCmd & "--out=" & cutycaptJpg & " --url=" & url)
-    if exitCode1 == 0:
+        let documentFilePath = cutycaptPdf
+        let documentCaption = url
+    if execCmdEx(cutycaptCmd & "--out=" & cutycaptJpg & " --url=" &
+        url).exitCode == 0:
       handlerizerDocument():
-        let document_file_path = cutycaptJpg
-        let document_caption = url
+        let documentFilePath = cutycaptJpg
+        let documentCaption = url
   else:
     handlerizer():
       let message = "*Syntax:*\n`/url https://YOUR-URL-HERE`"
@@ -218,11 +218,11 @@ proc urlHandler(bot: Telebot, update: Command) {.async.} =
 proc geoHandler(bot: Telebot, update: Command) {.async.} =
   let url = update.message.text.get.replace("/geo", "").strip
   if url.split(",").len == 2 and url.len < 20:
-    let lat_lon = url.split(",")
-    if lat_lon.len == 2 and lat_lon[0].len > 2 and lat_lon[1].len > 2:
+    let latLon = url.split(",")
+    if latLon.len == 2 and latLon[0].len > 2 and latLon[1].len > 2:
       handlerizerLocation():
-        let latitud = parseFloat(lat_lon[0])
-        let longitud = parseFloat(lat_lon[1])
+        let latitud = parseFloat(latLon[0])
+        let longitud = parseFloat(latLon[1])
   else:
     handlerizer():
       let message = "*Syntax:*\n`/geo 42.5,66.6`"

@@ -2,13 +2,9 @@ import
   asyncdispatch, httpclient, logging, json, options, osproc, strformat,
   strutils, times, random, posix, os, posix_utils
 
-import telebot, openexchangerates, openweathermap, zip/zipfiles
+import telebot, openexchangerates, openweathermap, zip/zipfiles, contra
 
-when defined(arm) or defined(i386): {.hint: "32-Bit x86 and ARM is Untested".}
-when defined(macosx) or defined(windows): {.hint: "Windows,Apple is Untested".}
-when defined(defUserAgent) and not defined(ssl): {.hint: "For SSL use -d:ssl".}
-when defined(release): {.passL: "-s", passC: "-flto -ffast-math -march=native".}
-else: {.checks: on, warnings: on, hints: on, hint[LineTooLong]: off.}
+hardenedBuild()
 
 include "constants.nim", "variables.nim"
 

@@ -244,13 +244,23 @@ proc buildRepo(url: string): bool =
   precondition url.len > 0
   inc counter
   echo counter, url
-  let myjail = Firejail(no3d=true, noDbus=true, noDvd=true, noRoot=true,
-    noSound=true, noVideo=true, noShell=true, noX=true, noNet=true, noIp=true)
+
+  let myjail = Firejail(
+    noAllusers = true, apparmor = true, caps = true, noMachineId  = true, 
+    noMnt = true, noRamWriteExec = true, no3d = true, noDbus = true, 
+    noDvd = true, noGroups = true, noNewPrivs = true, noRoot = true, 
+    noSound = true, noAutoPulse = true, noVideo = true, forceEnUsUtf8 = true, 
+    noU2f = true, privateTmp = true, private = true, privateCache = true,
+    privateDev = true, noTv = true, writables = true, seccomp = true, 
+    noShell = true, noX = true, noNet = true, noIp = true, noDebuggers = true, 
+    appimage = false, newIpcNamespace = true, useMtuJumbo9000 = true, 
+    useNice20 = true, useRandomMac = true,
+  )
   let jailCmd = myjail.makeCommand(command: string, 
-    timeout: range[0..99] = 0, name="",
+    timeout = 99, name="",
     gateway="", hostsFile="", logFile="", chroot="", tmpfs="",
     whitelist: seq[string] = @[], blacklist: seq[string] = @[],
-    dnsServers: array[4, string] = ["", "", "", ""], maxSubProcesses = 0,
+    dnsServers = ["1.1.1.1", "8.8.8.8", "8.8.4.4", "1.0.0.1"], maxSubProcesses = 0,
     maxOpenFiles = 0, maxFileSize = 0, maxPendingSignals = 0,
     maxRam = 0, maxCpu = 0, cpuCoresByNumber: seq[int] = @[])
   # prepare firejail command

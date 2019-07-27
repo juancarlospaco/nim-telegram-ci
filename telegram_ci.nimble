@@ -3,7 +3,7 @@
 version       = "0.1.0"
 author        = "Juan Carlos"
 description   = "Telegram CI"
-license       = "MIT"
+license       = "PPL"
 srcDir        = "src"
 bin           = @["nim_telegram_ci"]
 
@@ -11,7 +11,7 @@ bin           = @["nim_telegram_ci"]
 
 # Dependencies
 
-requires "nim >= 0.20.0"
+requires "nim >= 0.20.2"
 requires "telebot"
 requires "zip"
 requires "webp"

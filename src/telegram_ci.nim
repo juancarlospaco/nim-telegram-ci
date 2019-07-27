@@ -240,6 +240,28 @@ proc startHandler(bot: Telebot, update: Command) {.async.} =
   discard await bot.send(mesage)
 
 
+proc buildRepo(url: string): bool =
+  precondition url.len > 0
+  inc counter
+  echo counter, url
+  let myjail = Firejail(no3d=true, noDbus=true, noDvd=true, noRoot=true,
+    noSound=true, noVideo=true, noShell=true, noX=true, noNet=true, noIp=true)
+  let jailCmd = myjail.makeCommand(command: string, 
+    timeout: range[0..99] = 0, name="",
+    gateway="", hostsFile="", logFile="", chroot="", tmpfs="",
+    whitelist: seq[string] = @[], blacklist: seq[string] = @[],
+    dnsServers: array[4, string] = ["", "", "", ""], maxSubProcesses = 0,
+    maxOpenFiles = 0, maxFileSize = 0, maxPendingSignals = 0,
+    maxRam = 0, maxCpu = 0, cpuCoresByNumber: seq[int] = @[])
+  # prepare firejail command
+  # format a source code of a unittest, if needed
+  # call subprocess via firejail
+  # get result tuple and report
+  # post report and result to channel
+  # log result tuple
+  # return result tuple
+
+
 proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())

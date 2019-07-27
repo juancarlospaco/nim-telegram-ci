@@ -1,8 +1,8 @@
 import
   asyncdispatch, httpclient, logging, json, options, osproc, strformat,
-  strutils, times, random, posix, os, posix_utils
+  strutils, times, random, posix, os, posix_utils, db_sqlite
 
-import telebot, openexchangerates, openweathermap, zip/zipfiles, contra
+import telebot, openexchangerates, openweathermap, zip/zipfiles, contra #, firejail
 
 hardenedBuild()
 
@@ -18,6 +18,9 @@ template connectDb() =
 template generateDB(db: DbConn) =
   echo("Database: Generating database")
   if not db.tryExec(ciTable): echo("Database: CI table already exists")
+
+connectDb()
+generateDB(db)
 
 template handlerizer(body: untyped): untyped =
   ## This Template sends a markdown text message from the ``message`` variable.
@@ -246,27 +249,46 @@ proc startHandler(bot: Telebot, update: Command) {.async.} =
   mesage.replyMarkup = newInlineKeyboardMarkup(@[b0, b1], @[b2, b3])
   discard await bot.send(mesage)
 
+proc handleUpdate(bot: TeleBot, update: Update): UpdateCallback =
+  ## Handler for all Updates, it does different simple actions based on the message received.
+  inc counter
+  echo update.message.get
+  # var response = update.message.get
+  # if unlikely(response.document.isSome):   # files
+  #   var msg = newMessage(response.chat.id, "*NO Documents: Documents no, only Git HTTPS URLs!*") 
+  #   msg.disableNotification = true
+  #   msg.parseMode = "markdown"
+  #   discard bot.send(msg)
+  # elif response.text.isSome:   # Text Message.
+  #   let url = response.text.get.strip.toLowerAscii
+  #   let isUrl = countLines(url) == 1 and ' ' notin url and url.startsWith("https://")
+  #   if isUrl:  # HTTPS URL Link.
+  #     const sqlAddUrl = sql"INSERT INTO ci (url) VALUES (?)"
+  #     var msg = newMessage(response.chat.id, "$(insertID(db, sqlAddUrl, url))") 
+  #     msg.disableNotification = true
+  #     msg.parseMode = "markdown"
+  #     discard bot.send(msg)
 
 proc buildRepo(url: string): bool =
-  precondition url.len > 0
+  preconditions url.len > 0
   inc counter
   echo counter, url
   # Firejail
-  let myjail = Firejail(
-    noAllusers = true, apparmor = true, caps = true, noMachineId  = true, 
-    noMnt = true, noRamWriteExec = true, no3d = true, noDbus = true, 
-    noDvd = true, noGroups = true, noNewPrivs = true, noRoot = true, 
-    noSound = true, noAutoPulse = true, noVideo = true, forceEnUsUtf8 = true, 
-    noU2f = true, privateTmp = true, private = true, privateCache = true,
-    privateDev = true, noTv = true, writables = true, seccomp = true, 
-    noShell = true, noX = true, noNet = true, noIp = true, noDebuggers = true, 
-    appimage = false, newIpcNamespace = true, useMtuJumbo9000 = true, 
-    useNice20 = true, useRandomMac = true,
-  )
-  let jailCmd = myjail.makeCommand(command: string,
-    timeout = 99, maxOpenFiles = 99, maxPendingSignals = 9,
-    dnsServers = ["1.1.1.1", "8.8.8.8", "8.8.4.4", "1.0.0.1"],
-  )
+  # let myjail = Firejail(
+  #   noAllusers = true, apparmor = true, caps = true, noMachineId  = true, 
+  #   noMnt = true, noRamWriteExec = true, no3d = true, noDbus = true, 
+  #   noDvd = true, noGroups = true, noNewPrivs = true, noRoot = true, 
+  #   noSound = true, noAutoPulse = true, noVideo = true, forceEnUsUtf8 = true, 
+  #   noU2f = true, privateTmp = true, private = true, privateCache = true,
+  #   privateDev = true, noTv = true, writables = true, seccomp = true, 
+  #   noShell = true, noX = true, noNet = true, noIp = true, noDebuggers = true, 
+  #   appimage = false, newIpcNamespace = true, useMtuJumbo9000 = true, 
+  #   useNice20 = true, useRandomMac = true,
+  # )
+  # let jailCmd = myjail.makeCommand(command: string,
+  #   timeout = 99, maxOpenFiles = 99, maxPendingSignals = 9,
+  #   dnsServers = ["1.1.1.1", "8.8.8.8", "8.8.4.4", "1.0.0.1"],
+  # )
   # prepare firejail command
   # format a source code of a unittest, if needed
   # call subprocess via firejail
@@ -279,9 +301,9 @@ proc buildRepo(url: string): bool =
 proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
-  connectDb()
-  generateDB(db)
   let bot = newTeleBot(apiKey)
+  # Updates
+  bot.onUpdate(handleUpdate)
   # No parameters
   bot.onCommand("start", startHandler)
   bot.onCommand("about", aboutHandler)
@@ -307,7 +329,6 @@ proc main() {.async.} =
   # Use parameters
   bot.onCommand("url", urlHandler)
   bot.onCommand("geo", geoHandler)
-  #bot.onUpdate(handleUpdate)
   discard nice(19.cint)       # smooth cpu priority
   bot.poll(pollingInterval)
 

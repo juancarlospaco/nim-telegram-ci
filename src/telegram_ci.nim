@@ -244,7 +244,7 @@ proc buildRepo(url: string): bool =
   precondition url.len > 0
   inc counter
   echo counter, url
-
+  # Firejail
   let myjail = Firejail(
     noAllusers = true, apparmor = true, caps = true, noMachineId  = true, 
     noMnt = true, noRamWriteExec = true, no3d = true, noDbus = true, 
@@ -256,13 +256,10 @@ proc buildRepo(url: string): bool =
     appimage = false, newIpcNamespace = true, useMtuJumbo9000 = true, 
     useNice20 = true, useRandomMac = true,
   )
-  let jailCmd = myjail.makeCommand(command: string, 
-    timeout = 99, name="",
-    gateway="", hostsFile="", logFile="", chroot="", tmpfs="",
-    whitelist: seq[string] = @[], blacklist: seq[string] = @[],
-    dnsServers = ["1.1.1.1", "8.8.8.8", "8.8.4.4", "1.0.0.1"], maxSubProcesses = 0,
-    maxOpenFiles = 0, maxFileSize = 0, maxPendingSignals = 0,
-    maxRam = 0, maxCpu = 0, cpuCoresByNumber: seq[int] = @[])
+  let jailCmd = myjail.makeCommand(command: string,
+    timeout = 99, maxOpenFiles = 99, maxPendingSignals = 9,
+    dnsServers = ["1.1.1.1", "8.8.8.8", "8.8.4.4", "1.0.0.1"],
+  )
   # prepare firejail command
   # format a source code of a unittest, if needed
   # call subprocess via firejail

@@ -11,6 +11,14 @@ include "constants.nim", "variables.nim"
 var counter: int ## Integer that counts how many times the bot has been used.
 
 
+template connectDb() =
+  ## Connect the Database and injects a ``db`` variable with the ``DbConn``.
+  var db {.inject.} = db_sqlite.open( "ci.db", "", "", "")
+
+template generateDB(db: DbConn) =
+  echo("Database: Generating database")
+  if not db.tryExec(ciTable): echo("Database: CI table already exists")
+
 template handlerizer(body: untyped): untyped =
   ## This Template sends a markdown text message from the ``message`` variable.
   inc counter
@@ -63,7 +71,6 @@ template handlerizerDocument(body: untyped): untyped =
   document.caption = documentCaption.strip
   document.disableNotification = true
   discard bot.send(document)
-
 
 proc aboutHandler(bot: Telebot, update: Command) {.async.} =
   handlerizer():
@@ -272,6 +279,8 @@ proc buildRepo(url: string): bool =
 proc main() {.async.} =
   addHandler(newConsoleLogger(fmtStr = verboseFmtStr))
   addHandler(newRollingFileLogger())
+  connectDb()
+  generateDB(db)
   let bot = newTeleBot(apiKey)
   # No parameters
   bot.onCommand("start", startHandler)
